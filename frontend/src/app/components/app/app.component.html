@@ -1,0 +1,17 @@
+<div class="app-container">
+
+  <app-menu></app-menu>
+
+  <app-products-banner></app-products-banner>
+
+  <app-products-search (searchEmitter)="updateContent($event)"></app-products-search>
+
+  <div class="content">
+
+    <app-products-content [filterSkuInput]="filterProductSku" (buyContentEmitter)="updateBuyProduct($event)"></app-products-content>
+
+    <app-sidebar [buyProductInput]="buyProduct"></app-sidebar>
+
+  </div>
+
+</div>

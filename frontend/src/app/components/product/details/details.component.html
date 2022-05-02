@@ -1,0 +1,16 @@
+<mat-card class="product-card">
+
+  <img mat-card-image mat-card-xl-image
+       [src]="item?.url"
+       [alt]="item?.description">
+
+  <mat-card-content>
+    <strong>Item: </strong><span>{{item?.description }}</span><br>
+    <strong>Price: </strong><span>{{item?.price | currency}}</span>
+  </mat-card-content>
+
+</mat-card>
+
+<div mat-dialog-actions >
+  <button mat-button mat-dialog-close>Close</button>
+</div>

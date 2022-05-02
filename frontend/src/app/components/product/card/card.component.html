@@ -1,0 +1,17 @@
+<mat-card class="product-card">
+
+  <img mat-card-image mat-card-sm-image
+       [src]="item?.url"
+       [alt]="item?.description">
+
+  <mat-card-content>
+    <strong>Item: </strong><span>{{item?.description | slice:0:10}} ...</span><br>
+    <strong>Price: </strong><span>{{item?.price | currency}}</span>
+  </mat-card-content>
+
+  <mat-card-actions>
+    <button mat-raised-button color="primary" (click)="buyItem(item)">BUY</button>
+    <button mat-button color="primary" (click)="showItem(item)">DETAILS</button>
+  </mat-card-actions>
+
+</mat-card>

@@ -1,0 +1,29 @@
+<div class="app-search">
+
+  <form action="#">
+
+    <mat-form-field style="margin: 5px" appearance="outline">
+      <mat-label>Search a product</mat-label>
+      <input type="text"
+             matInput
+             aria-label="Product"
+             placeholder="Description"
+             [matAutocomplete]="auto"
+             [formControl]="productsSearchCtrl"
+             (change)="updateSearch($event)"
+      />
+      <mat-icon matSuffix color="primary">search</mat-icon>
+    </mat-form-field>
+
+    <mat-autocomplete #auto="matAutocomplete">
+      <mat-option *ngFor="let option of filteredProducts | async" (onSelectionChange)="selected($event)"
+                  [id]="option.sku"
+                  [value]="option.description">
+        <span>{{option.description}}</span>
+      </mat-option>
+    </mat-autocomplete>
+
+  </form>
+
+</div>
+
