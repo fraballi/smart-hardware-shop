@@ -1,6 +1,7 @@
 package com.smart.shop.backend.domain;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,15 +18,15 @@ public class ProductsStorage {
    @Getter(AccessLevel.PRIVATE)
    Map<String, Product> storage = new ConcurrentHashMap<>();
 
-   public synchronized Product get(final String sku) {
-      return storage.get(sku);
+   public synchronized Optional<Product> get(final String sku) {
+      return Optional.ofNullable(storage.get(sku));
    }
 
    public synchronized Set<Product> getAll() {
       return Set.copyOf(storage.values());
    }
 
-   public synchronized void addOrUpdate(final Product product) {
+   public synchronized Product addOrUpdate(final Product product) {
       if (storage.containsKey(product.getSku())) {
          final var id = storage.get(product.getSku()).getId();
          product.setId(id);
@@ -35,6 +36,7 @@ public class ProductsStorage {
          product.setId(id);
          storage.putIfAbsent(product.getSku(), product);
       }
+      return product;
    }
 
    public synchronized Product remove(final String sku) {

@@ -1,6 +1,9 @@
 package com.smart.shop.backend.service;
 
-import java.time.Duration;
+import static com.smart.shop.backend.util.Constants.MOCK_PRODUCT;
+
+import java.util.Arrays;
+import java.util.Objects;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -30,44 +33,45 @@ class ProductsServiceTests {
    @DisplayName("Check Service - Get All Products")
    void check_get_all_products() {
       final var allProducts = productsService.getAll();
-      StepVerifier.create(allProducts).expectNextCount(15L).verifyComplete();
-
-      final var found = allProducts.any(prd -> prd.getDescription().equalsIgnoreCase("Intel Processor")).blockOptional(Duration.ofSeconds(5));
-      Assertions.assertThat(found).isNotEmpty().get().isEqualTo(true);
+      StepVerifier.create(allProducts).assertNext(entity -> {
+         final var products = Objects.requireNonNull(entity.getBody()).getMessage(Product[].class);
+         final var condition = Arrays.stream(products).anyMatch(prd -> prd.getDescription().equalsIgnoreCase("Intel Processor"));
+         Assertions.assertThat(condition).isTrue();
+      }).verifyComplete();
    }
 
    @Test
    @DisplayName("Check Service - Create a Product")
    void check_create_a_product() {
 
-      final var mockProduct = new Product(0, "BBB", 10.0d, 10, "A Product",
-            "https://icon-library" + ".com/images/icon-for-product/icon-for-product-23.jpg");
-
-      final var created = productsService.saveOrUpdate(mockProduct);
-      StepVerifier.create(created).expectNextMatches(prd -> prd.getSku().equals(mockProduct.getSku())).verifyComplete();
-
-      final var allProducts = productsService.getAll();
-      final var found = allProducts.any(prd -> prd.getSku().equalsIgnoreCase("BBB")).blockOptional(Duration.ofSeconds(5));
-
-      Assertions.assertThat(found).isNotEmpty().get().isEqualTo(true);
+      final var created = productsService.saveOrUpdate(MOCK_PRODUCT.get());
+      StepVerifier.create(created).assertNext(entity -> {
+         final var message = Objects.requireNonNull(entity.getBody()).getMessage(String.class);
+         Assertions.assertThat(message).isEqualTo("Successfully created");
+      }).verifyComplete();
    }
 
    @Test
    @DisplayName("Check Service - Delete a Product")
    void check_delete_a_product() {
 
-      final var mockProduct = new Product(0, "BBB", 10.0d, 10, "A Product",
-            "https://icon-library" + ".com/images/icon-for-product/icon-for-product-23.jpg");
+      final var created = productsService.saveOrUpdate(MOCK_PRODUCT.get());
+      StepVerifier.create(created).assertNext(entity -> {
+         final var message = Objects.requireNonNull(entity.getBody()).getMessage(String.class);
+         Assertions.assertThat(message).isEqualTo("Successfully created");
+      }).verifyComplete();
 
-      final var created = productsService.saveOrUpdate(mockProduct);
-      StepVerifier.create(created).expectNextMatches(prd -> prd.getSku().equals(mockProduct.getSku())).verifyComplete();
-
-      final var deleted = productsService.delete(mockProduct.getSku());
-      StepVerifier.create(deleted).expectNext(true).verifyComplete();
+      final var deleted = productsService.delete(MOCK_PRODUCT.get().getSku());
+      StepVerifier.create(deleted).assertNext(entity -> {
+         final var message = Objects.requireNonNull(entity.getBody()).getMessage(String.class);
+         Assertions.assertThat(message).isEqualTo("Successfully deleted");
+      }).verifyComplete();
 
       final var allProducts = productsService.getAll();
-      final var notFound = allProducts.filter(prd -> prd.getSku().equalsIgnoreCase("BBB"));
-
-      StepVerifier.create(notFound).expectNextCount(0L).verifyComplete();
+      StepVerifier.create(allProducts).assertNext(entity -> {
+         final var products = Objects.requireNonNull(entity.getBody()).getMessage(Product[].class);
+         final var condition = Arrays.stream(products).noneMatch(prd -> prd.getSku().equalsIgnoreCase(MOCK_PRODUCT.get().getSku()));
+         Assertions.assertThat(condition).isTrue();
+      }).verifyComplete();
    }
 }

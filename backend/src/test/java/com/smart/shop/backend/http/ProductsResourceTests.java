@@ -1,17 +1,24 @@
 package com.smart.shop.backend.http;
 
+import static com.smart.shop.backend.util.Constants.MOCK_PRODUCT;
+
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.smart.shop.backend.domain.Product;
 
 /**
@@ -36,62 +43,69 @@ class ProductsResourceTests {
    @Test
    @DisplayName("Check Resource - Get All Products")
    void check_get_all_products() {
-      final var products = client
+      final var response = client
             .get()
             .uri(url)
             .accept(MediaType.APPLICATION_JSON)
             .exchange()
             .expectStatus()
             .isOk()
-            .expectBody(Product[].class)
+            .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {
+
+            })
             .returnResult()
             .getResponseBody();
 
       final var descriptions = Set.of("Intel Processor", "AMD Processor", "Gamer Chair");
-      Assertions.assertThat(products).isNotEmpty().extracting("description", String.class).contains(descriptions.toArray(String[]::new));
+      Assertions
+            .assertThat(response)
+            .containsEntry("statusCode", "OK")
+            .containsKey("message")
+            .extracting("message")
+            .asInstanceOf(InstanceOfAssertFactories.list(Product[].class))
+            .isNotEmpty()
+            .extracting("description", String.class)
+            .contains(descriptions.toArray(String[]::new));
    }
 
    @Test
    @DisplayName("Check Resource - Create a Product")
    void check_create_product() {
-      final var mockProduct = new Product(0, "AAA", 10.0d, 10, "A Product",
-            "https://icon-library" + ".com/images/icon-for-product/icon-for-product-23.jpg");
 
-      final Product product = client
+      final var response = client
             .post()
             .uri(url)
             .accept(MediaType.APPLICATION_JSON)
             .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(mockProduct)
+            .bodyValue(MOCK_PRODUCT.get())
             .exchange()
             .expectStatus()
-            .isOk()
-            .expectBody(Product.class)
+            .isCreated()
+            .expectBody(new ParameterizedTypeReference<Map<String, String>>() {
+
+            })
             .returnResult()
             .getResponseBody();
 
-      Assertions.assertThat(product).isNotNull().hasFieldOrPropertyWithValue("sku", mockProduct.getSku());
+      Assertions.assertThat(response).containsEntry("statusCode", "CREATED");
    }
 
    @Test
    @DisplayName("Check Resource - Delete a Product")
-   void check_delete_product() {
+   void check_delete_product() throws JsonProcessingException {
 
-      var products = client
-            .get()
-            .uri(url)
-            .accept(MediaType.APPLICATION_JSON)
-            .exchange()
-            .expectStatus()
-            .isOk()
-            .expectBody(Product[].class)
-            .returnResult()
-            .getResponseBody();
+      Map<String, Object> response = getAllResponse();
+      Assertions
+            .assertThat(response)
+            .containsEntry("statusCode", "OK")
+            .containsKey("message")
+            .asInstanceOf(InstanceOfAssertFactories.map(String.class, Object.class))
+            .isNotEmpty();
 
-      Assertions.assertThat(products).isNotEmpty();
-      final var selectedProduct = products[0];
+      var products = (List<Map<String, Object>>) response.get("message");
+      final var sku = products.get(0).get("sku");
 
-      final var deleteResource = url + "/sku/" + selectedProduct.getSku();
+      final var deleteResource = url + "/sku/" + sku;
       final var deleted = client
             .delete()
             .uri(deleteResource)
@@ -99,23 +113,33 @@ class ProductsResourceTests {
             .exchange()
             .expectStatus()
             .isOk()
-            .expectBody(Boolean.class)
+            .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {
+
+            })
             .returnResult()
             .getResponseBody();
 
-      Assertions.assertThat(deleted).isTrue();
+      Assertions.assertThat(deleted).containsEntry("statusCode", "OK").containsEntry("message", "Successfully deleted");
 
-      products = client
+      response = getAllResponse();
+      products = (List<Map<String, Object>>) response.get("message");
+
+      final var notFound = products.stream().noneMatch(map -> map.get("sku").equals(sku));
+      Assertions.assertThat(notFound).isTrue();
+   }
+
+   private Map<String, Object> getAllResponse() {
+      return client
             .get()
             .uri(url)
             .accept(MediaType.APPLICATION_JSON)
             .exchange()
             .expectStatus()
             .isOk()
-            .expectBody(Product[].class)
+            .expectBody(new ParameterizedTypeReference<Map<String, Object>>() {
+
+            })
             .returnResult()
             .getResponseBody();
-
-      Assertions.assertThat(products).isNotEmpty().extracting("sku").doesNotContain(selectedProduct.getSku());
    }
 }

@@ -1,18 +1,23 @@
 package com.smart.shop.backend;
 
+import static com.smart.shop.backend.util.Constants.PRODUCTS_RESOURCE;
+
+import java.net.URI;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.smart.shop.backend.domain.Product;
 import com.smart.shop.backend.domain.ProductsStorage;
 import com.smart.shop.backend.domain.SearchProductDTO;
+import com.smart.shop.backend.util.api.ApiOperation;
 import com.smart.shop.backend.util.mapper.ProductsMapper;
 
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -21,12 +26,14 @@ import reactor.core.publisher.Mono;
 @Service
 public record ProductsService(ProductsStorage storage, ProductsMapper mapper) {
 
-   public Flux<Product> getAll() {
+   public Mono<ResponseEntity<ApiOperation>> getAll() {
       final var data = storage.getAll().stream().sorted(Comparator.comparing(Product::getDescription)).toArray(Product[]::new);
-      return Flux.just(data);
+      final var apiOperation = ApiOperation.builder().message(data).build();
+      final var entity = ResponseEntity.ok().body(apiOperation);
+      return Mono.just(entity);
    }
 
-   public Flux<SearchProductDTO> search() {
+   public Mono<ResponseEntity<ApiOperation>> search() {
       final var data = storage
             .getAll()
             .stream()
@@ -34,26 +41,62 @@ public record ProductsService(ProductsStorage storage, ProductsMapper mapper) {
             .sorted(Comparator.comparing(SearchProductDTO::getDescription))
             .collect(Collectors.toCollection(LinkedHashSet::new))
             .toArray(SearchProductDTO[]::new);
-      return Flux.just(data);
+
+      final var apiOperation = ApiOperation.builder().message(data).build();
+      final var entity = ResponseEntity.ok().body(apiOperation);
+      return Mono.just(entity);
    }
 
-   public Mono<Product> get(final String sku) {
+   public Mono<ResponseEntity<ApiOperation>> get(final String sku) {
       final var product = storage.get(sku);
-      return Mono.just(product);
+
+      final var apiOperation = ApiOperation.builder();
+      final var entity = product.map(prd -> {
+         apiOperation.message(prd);
+         return new ResponseEntity<>(apiOperation.build(), HttpStatus.OK);
+      }).orElseGet(() -> {
+         apiOperation.statusCode(HttpStatus.NOT_FOUND).message(HttpStatus.NOT_FOUND.getReasonPhrase());
+         return new ResponseEntity<>(apiOperation.build(), HttpStatus.NOT_FOUND);
+      });
+
+      return Mono.just(entity);
    }
 
-   public Mono<Product> saveOrUpdate(final Product product) {
-      storage.addOrUpdate(product);
-      return Mono.just(product);
+   public Mono<ResponseEntity<ApiOperation>> saveOrUpdate(final Product product) {
+      final var savedProduct = storage.addOrUpdate(product);
+      final var apiOperation = ApiOperation.builder().statusCode(HttpStatus.CREATED).message("Successfully created").build();
+      final var createdURI = URI.create(PRODUCTS_RESOURCE + "/" + savedProduct.getId());
+      final var entity = ResponseEntity.created(createdURI).body(apiOperation);
+      return Mono.just(entity);
    }
 
-   public Mono<Boolean> delete(final String sku) {
+   public Mono<ResponseEntity<ApiOperation>> delete(final String sku) {
+      final var apiOperation = ApiOperation.builder();
+      final ResponseEntity<ApiOperation> entity;
+
       final var deleted = Objects.nonNull(storage.remove(sku));
-      return Mono.just(deleted);
+      if (deleted) {
+         apiOperation.message("Successfully deleted");
+         entity = new ResponseEntity<>(apiOperation.build(), HttpStatus.OK);
+      } else {
+         apiOperation.statusCode(HttpStatus.INTERNAL_SERVER_ERROR).message("Error deleting");
+         entity = new ResponseEntity<>(apiOperation.build(), HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+      return Mono.just(entity);
    }
 
-   public Mono<Boolean> deleteById(final long id) {
+   public Mono<ResponseEntity<ApiOperation>> deleteById(final long id) {
+      final var apiOperation = ApiOperation.builder();
+      final ResponseEntity<ApiOperation> entity;
+
       final var deleted = storage.removeById(id);
-      return Mono.just(deleted);
+      if (deleted) {
+         apiOperation.message("Successfully deleted");
+         entity = new ResponseEntity<>(apiOperation.build(), HttpStatus.OK);
+      } else {
+         apiOperation.statusCode(HttpStatus.INTERNAL_SERVER_ERROR).message("Error deleting the record");
+         entity = new ResponseEntity<>(apiOperation.build(), HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+      return Mono.just(entity);
    }
 }
